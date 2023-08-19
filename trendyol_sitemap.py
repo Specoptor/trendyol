@@ -10,7 +10,7 @@ product_pattern = re.compile(r'p-(\d+)')
 logging.basicConfig(filename='trendyol.log', level=logging.INFO,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
-
+logging.info('starting the scraper')
 def get_links():
     """
     Get the Product links from the sitemap.
@@ -123,10 +123,13 @@ def aggregate_product_data(response_dicts_list: list) -> list:
 
 def run_scraper() -> list[dict]:
     """ download product data
+
     1) Grab urls from sitemap
     2) Parse each url to get the product id
     3) Use the product id to fetch product response from the v2 content api
-    4) Save the content response to a json file
+    4) Once all products are downloaded, generate required_data for each by parsing the response
+    4) Save the required_data products response to a json file
+    5) Save the required_data as a csv by instantiating a pandas dataframe
     :return:
     """
     links = get_links()
@@ -139,8 +142,6 @@ def run_scraper() -> list[dict]:
                 'response': get_product_data_from_link(link)}
             product_data.append(data_dict)
             logging.info(f' {i} out of {len(links)} completed')
-            if len(product_data) == 200:
-                aggregate_product_data(product_data)
     except Exception as e:
         print(e)
     finally:
