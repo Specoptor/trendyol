@@ -7,6 +7,9 @@ import logging
 
 product_pattern = re.compile(r'p-(\d+)')
 
+logging.basicConfig(filename='trendyol.log', level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
 
 def get_links():
     """
@@ -88,9 +91,13 @@ def required_product_data(response_dict, link):
     required_data['images'] = response_dict['images']
     required_data['name'] = response_dict['name']
     required_data['brand_name'] = response_dict.get('brand', {}).get('name')
-    if response_dict.get('allVariants'):
+    required_data['in_stock'] = response_dict.get('inStock')
+    if required_data['in_stock'] and response_dict.get('allVariants'):
         required_data['barcode'] = response_dict['allVariants'][0]['barcode']
         required_data['price'] = response_dict['allVariants'][0]['price']
+        required_data['size'] = response_dict['allVariants'][0].get('size') or response_dict['allVariants'][0].get(
+            'value')
+
     return required_data
 
 
@@ -142,6 +149,7 @@ def run_scraper() -> list[dict]:
             aggregate_product_data(product_data)
 
     return product_data
+
 
 if __name__ == '__main__':
     # products = run_scraper()
