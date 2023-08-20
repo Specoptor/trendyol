@@ -187,7 +187,6 @@ def multi_runner(workers=10):
             for i, link in enumerate(links):
                 data_dict = executor.submit(helper, link)
                 threads.append(data_dict)
-                logging.info(f' {i} out of {len(links)} scraped')
         except Exception as e:
             print(e)
         finally:
