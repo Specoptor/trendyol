@@ -193,7 +193,10 @@ def multi_runner(workers=10):
             product_data = [thread.result() for thread in threads]
             with open('trendyol_products_de.json', 'w') as f:
                 json.dump(product_data, f)
+                logging.info('generating the csv')
                 aggregate_product_data(product_data)
+                logging.info('finished generating the csv')
+            logging.info('finished scraping')
             return product_data
 
 
