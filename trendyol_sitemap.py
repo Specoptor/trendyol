@@ -110,6 +110,7 @@ def required_product_data(response_dict, link):
         for description_attribute in response_dict.get('attributes', []):
             required_data[description_attribute['key']] = description_attribute['value']
     except Exception:
+        logging.info(f'error occured while parsing the required data for {required_data["url"]}')
         pass
     return required_data
 
@@ -127,6 +128,7 @@ def aggregate_product_data(response_dicts_list: list) -> list:
             if data['response']:
                 results.append(required_product_data(data['response'], data['link']))
     except Exception as e:
+        logging.info('error in aggregate_product_data')
         print(e)
     finally:
         df = pd.DataFrame(results)
@@ -156,6 +158,7 @@ def single_runner() -> list[dict]:
             product_data.append(data_dict)
             logging.info(f' {i} out of {len(links)} completed')
     except Exception as e:
+        logging.info('error in single_runner')
         print(e)
     finally:
         with open('trendyol_products_de.json', 'w') as f:
@@ -188,6 +191,7 @@ def multi_runner(workers=10):
                 data_dict = executor.submit(helper, link)
                 threads.append(data_dict)
         except Exception as e:
+            logging.info('error in multi_runner')
             print(e)
         finally:
             product_data = [thread.result() for thread in threads]
