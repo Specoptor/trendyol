@@ -32,7 +32,7 @@ def extract_urls():
         else:
             raise Exception(f'Error getting sitemap: {response.status_code}')
 
-    links = queue.Queue
+    links = queue.Queue()
     urls = [f'https://www.trendyol.com/sitemap_products{counter}.xml' for counter in range(1, 244)]
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(helper, url) for url in urls]
