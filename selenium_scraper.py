@@ -1,18 +1,45 @@
-"""
-Get the brand and title of the product
-"""
-import queue
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-import threading
-
+import queue
+import time
 import json
 import os
 import logging
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def extract_urls():
+    """
+    Get the Product links from the sitemap.
+    Include only turkish based urls.
+    :return: a list of containing product links.
+    """
+
+    def helper(link):
+        """
+        Helper function to get the content of the sitemap.
+        :param link: url of the xml sitemap containing product links
+        :return: response in xml format
+        """
+        response = requests.get(link)
+        return response.content
+
+    links = queue.Queue
+    urls = [f'https://www.trendyol.com/sitemap_products{counter}.xml' for counter in range(1, 244)]
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        futures = [executor.submit(helper, url) for url in urls]
+        for i, future in enumerate(as_completed(futures)):
+            content = future.result()
+            root = ET.fromstring(content)
+            for child in root:
+                links.put(child[0].text)
+            logging.info(f'Extracted links from sitemap: {i + 1}/243')
+    return links
 
 
 def get_brand_and_title(driver):
@@ -109,18 +136,20 @@ def split_urls(urls, num_splits):
     return chunks
 
 
-def multi_threaded_scraper(links, num_threads=10):
+def multi_threaded_scraper(url_queue, num_threads=30):
     """
     Scrape the product details from the product pages using multiple threads.
     :param links: list of product page urls to scrape.
     :return: a list of dictionaries containing the product details.
     """
+    start = time.time()
+    num_of_links = len(url_queue)
 
-    def worker_task(worker, url_queue):
+    def worker_task(worker, links_queue):
         results = {}
-        while not url_queue.empty():
+        while not links_queue.empty():
             try:
-                url = url_queue.get_nowait()
+                url = links_queue.get_nowait()
             except queue.Empty:
                 break
             try:
@@ -129,10 +158,6 @@ def multi_threaded_scraper(links, num_threads=10):
             except Exception as exc:
                 print(f'URL {url} generated an exception: {exc}')
         return results
-
-    url_queue = queue.Queue()
-    for url in links:
-        url_queue.put(url)
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         # Initialize workers
@@ -164,7 +189,8 @@ def multi_threaded_scraper(links, num_threads=10):
 
             for worker in workers:
                 worker.close()
-
+            elapsed = time.time() - start
+            logging.info(f'Average time per page: {elapsed}/ {num_of_links} seconds')
             return all_results
 
 
@@ -203,7 +229,6 @@ class Worker:
 
 if __name__ == '__main__':
     # load links
-    with open(os.path.join(os.getcwd(), 'turkish_product_links.json'), 'r') as f:
-        urls = json.load(f)
-    required_data_response = multi_threaded_scraper(urls[:100])
+    urls = extract_urls()
+    required_data_response = multi_threaded_scraper(urls[:5000])
     print(len(required_data_response))
