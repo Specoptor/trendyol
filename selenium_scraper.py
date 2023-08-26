@@ -11,6 +11,8 @@ from selenium.webdriver.common.by import By
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+logger = logging.getLogger(__name__)
+
 
 def extract_urls():
     """
@@ -27,7 +29,7 @@ def extract_urls():
         """
         response = requests.get(link)
         if response.status_code == 200:
-            logging.info(f'Extracted links from {link}')
+            logger.info(f'Extracted links from {link}')
             return response.content
         else:
             raise Exception(f'Error getting sitemap: {response.status_code}')
@@ -55,7 +57,7 @@ def get_brand_and_title(driver):
         brand_and_title = brand_and_title_element.text
         return brand_and_title
     except:
-        logging.critical(f'Error getting brand and title: {driver.current_url}')
+        logger.critical(f'Error getting brand and title: {driver.current_url}')
         return None
 
 
@@ -72,7 +74,7 @@ def get_price(driver):
         price = price_element.text
         return price
     except:
-        logging.debug(f'Price not found: {driver.current_url}')
+        logger.debug(f'Price not found: {driver.current_url}')
         return None
 
 
@@ -91,7 +93,7 @@ def get_attributes(driver):
             key, value = li.text.split('\n')
             attributes[key] = value
     except:
-        logging.debug(f'Attributes not found: {driver.current_url}')
+        logger.debug(f'Attributes not found: {driver.current_url}')
         pass
     finally:
         return attributes
@@ -108,9 +110,9 @@ def get_images(driver):
             images.append(other_image.get_attribute('src'))
     except:
         if not images:
-            logging.debug(f'No images found: {driver.current_url}')
+            logger.debug(f'No images found: {driver.current_url}')
         else:
-            logging.debug(f'Only main image found: {driver.current_url}')
+            logger.debug(f'Only main image found: {driver.current_url}')
     finally:
         return images
 
@@ -127,7 +129,7 @@ def get_description(driver):
         description_list_element = driver.find_element(By.CLASS_NAME, 'detail-desc-list')
         description = description_list_element.text
     except:
-        logging.debug(f'Description not found: {driver.current_url}')
+        logger.debug(f'Description not found: {driver.current_url}')
     finally:
         return description
 
@@ -177,22 +179,22 @@ def multi_threaded_scraper(url_queue, num_threads=30):
                 else:
                     all_results.update(data)
         except:
-            logging.critical('Error in scraper')
+            logger.critical('Error in scraper')
         finally:
             # ensure results found
             if not all_results:
-                logging.critical('No data scraped')
+                logger.critical('No data scraped')
 
             # store the required data
             else:
                 with open('required_product_data_turkish.json', 'w') as f:
                     json.dump(all_results, f, indent=4)
-                    logging.info('Required data stored')
+                    logger.info('Required data stored')
 
             for worker in workers:
                 worker.close()
             elapsed = time.time() - start
-            logging.info(f'Average time per page: {elapsed}/ {num_of_links} seconds')
+            logger.info(f'Average time per page: {elapsed}/ {num_of_links} seconds')
             return all_results
 
 
@@ -213,7 +215,7 @@ class Worker:
                            }
 
         if self.driver.title == 'trendyol.com':
-            logging.info(f'Product does not exit anymore: {url}')
+            logger.info(f'Product does not exit anymore: {url}')
             return product_details
 
         product_details['brand_and_title'] = get_brand_and_title(self.driver)
@@ -221,7 +223,7 @@ class Worker:
         product_details['attributes'] = get_attributes(self.driver)
         product_details['description'] = get_description(self.driver)
         product_details['images'] = get_images(self.driver)
-        logging.info(f'Extracted product details: {url}')
+        logger.info(f'Extracted product details: {url}')
 
         return product_details
 
