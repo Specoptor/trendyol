@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import queue
 import time
 import json
-import os
 import logging
 import requests
 from selenium import webdriver
@@ -27,18 +26,21 @@ def extract_urls():
         :return: response in xml format
         """
         response = requests.get(link)
-        return response.content
+        if response.status_code == 200:
+            logging.info(f'Extracted links from {link}')
+            return response.content
+        else:
+            raise Exception(f'Error getting sitemap: {response.status_code}')
 
     links = queue.Queue
     urls = [f'https://www.trendyol.com/sitemap_products{counter}.xml' for counter in range(1, 244)]
-    with ThreadPoolExecutor(max_workers=25) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(helper, url) for url in urls]
-        for i, future in enumerate(as_completed(futures)):
+        for future in as_completed(futures):
             content = future.result()
             root = ET.fromstring(content)
             for child in root:
                 links.put(child[0].text)
-            logging.info(f'Extracted links from sitemap: {i + 1}/243')
     return links
 
 
@@ -131,19 +133,19 @@ def get_description(driver):
 
 
 def split_urls(urls, num_splits):
-    avg = len(urls) // num_splits
-    chunks = [urls[i:i + avg] for i in range(0, len(urls), avg)]
+    avg = urls.qsize() // num_splits
+    chunks = [urls[i:i + avg] for i in range(0, urls.qsize(), avg)]
     return chunks
 
 
 def multi_threaded_scraper(url_queue, num_threads=30):
     """
     Scrape the product details from the product pages using multiple threads.
-    :param links: list of product page urls to scrape.
+    :param url_queue: queue.Queue data structure containing the urls to scrape.
     :return: a list of dictionaries containing the product details.
     """
     start = time.time()
-    num_of_links = len(url_queue)
+    num_of_links = url_queue.qsize()
 
     def worker_task(worker, links_queue):
         results = {}
@@ -227,8 +229,6 @@ class Worker:
         self.driver.quit()
 
 
-if __name__ == '__main__':
-    # load links
-    urls = extract_urls()
-    required_data_response = multi_threaded_scraper(urls[:5000])
-    print(len(required_data_response))
+urls = extract_urls()
+required_data_response = multi_threaded_scraper(urls)
+print(len(required_data_response))
