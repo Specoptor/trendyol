@@ -102,13 +102,14 @@ def required_product_data(response_dict, link):
         required_data['brand_name'] = response_dict.get('brand', {}).get('name')
         required_data['in_stock'] = response_dict.get('inStock')
         if required_data['in_stock'] and response_dict.get('allVariants'):
-            required_data['barcode'] = response_dict['allVariants'][0]['barcode']
+            required_data['barcode'] = str(response_dict['allVariants'][0]['barcode'])
             required_data['price'] = response_dict['allVariants'][0]['price']
             required_data['size'] = response_dict['allVariants'][0].get('size') or response_dict['allVariants'][0].get(
                 'value')
-        required_data['description_attributes'] = []
         for description_attribute in response_dict.get('attributes', []):
-            required_data[description_attribute['key']] = description_attribute['value']
+            key = description_attribute['key']
+            if key != 'description':
+                required_data[key] = description_attribute['value']
     except Exception:
         logging.info(f'error occured while parsing the required data for {required_data["url"]}')
         pass
@@ -163,7 +164,8 @@ def single_runner() -> list[dict]:
     finally:
         with open('trendyol_products_de.json', 'w') as f:
             json.dump(product_data, f)
-            aggregate_product_data(product_data)
+            available_products = aggregate_product_data(product_data)
+            logging.info('finished generating the csv. Available products: ', len(available_products))
 
     return product_data
 
@@ -197,13 +199,13 @@ def multi_runner(workers=10):
             product_data = [thread.result() for thread in threads]
             with open('trendyol_products_de.json', 'w') as f:
                 json.dump(product_data, f)
-                logging.info('generating the csv')
-                aggregate_product_data(product_data)
-                logging.info('finished generating the csv')
+            logging.info('generating the csv')
+            aggregate_product_data(product_data)
+            logging.info('finished generating the csv')
             logging.info('finished scraping')
             return product_data
 
 
 if __name__ == '__main__':
-    req_data = multi_runner(workers=10)
-    print(len(req_data))
+    req_data = multi_runner(workers=25)
+    logging.info(f'Processed {len(req_data)} number of products')
