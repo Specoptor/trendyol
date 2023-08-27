@@ -35,14 +35,20 @@ def extract_urls():
             raise Exception(f'Error getting sitemap: {response.status_code}')
 
     links = queue.Queue()
-    urls = [f'https://www.trendyol.com/sitemap_products{counter}.xml' for counter in range(1, 244)]
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    urls = [f'https://www.trendyol.com/sitemap_products{counter}.xml' for counter in range(1, 2)]
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = [executor.submit(helper, url) for url in urls]
+        num_of_links = 0
         for future in as_completed(futures):
             content = future.result()
             root = ET.fromstring(content)
             for child in root:
                 links.put(child[0].text)
+                num_of_links += 1
+                if num_of_links >= 1000:
+                    logging.info('Extracted 1000 links')
+                    return links
+    logging.info(f'Extracted {num_of_links} links')
     return links
 
 
@@ -194,7 +200,7 @@ def multi_threaded_scraper(url_queue, num_threads=30):
             for worker in workers:
                 worker.close()
             elapsed = time.time() - start
-            logger.info(f'Average time per page: {elapsed}/ {num_of_links} seconds')
+            logger.info(f'Average time per page: {elapsed / num_of_links}.2f seconds')
             return all_results
 
 
