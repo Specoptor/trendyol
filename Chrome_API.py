@@ -111,43 +111,52 @@ def get_description(soup):
 def scrape_product_details():
     try:
         data = request.json
-        url_to_scrape = data.get('url')
+        urls_to_scrape = data.get('urls')
 
-        if not url_to_scrape:
-            return jsonify({'error': 'Invalid request. Please provide a URL in the JSON payload.'})
+        if not urls_to_scrape or not isinstance(urls_to_scrape, list):
+            return jsonify({'error': 'Invalid request. Please provide a list of URLs in the JSON payload.'}), 400
 
-        response = requests.get(url_to_scrape)
-        if response.status_code != 200:
-            return jsonify({'error': 'Invalid URL or product not available.'})
+        scraped_data = []  # Initialize a list to store scraped data
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        if soup.title.get_text() == 'trendyol.com':
-            return jsonify({'error': 'Product is not available.'})
+        for url_to_scrape in urls_to_scrape:
+            try:
+                response = requests.get(url_to_scrape)
+                if response.status_code != 200:
+                    return jsonify({'error': f'Invalid URL or product not available for: {url_to_scrape}'}), 400
 
-        # Call the function to get image links
-        image_links = scrape_image_links(url_to_scrape)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                if soup.title.get_text() == 'trendyol.com':
+                    return jsonify({'error': 'Product is not available.'}), 400
 
-        product_details = {
-            'url': url_to_scrape,
-            'brand_and_title': get_brand_and_title(soup),
-            'price': get_price(soup),
-            'attributes': get_attributes(soup),
-            'images': image_links,
-            'description': get_description(soup)
-        }
+                # Call the function to get image links
+                image_links = scrape_image_links(url_to_scrape)
 
-        # Save product details to a CSV file (optional)
+                product_details = {
+                    'url': url_to_scrape,
+                    'brand_and_title': get_brand_and_title(soup),
+                    'price': get_price(soup),
+                    'attributes': get_attributes(soup),
+                    'images': image_links,
+                    'description': get_description(soup)
+                }
+
+                scraped_data.append(product_details)  # Add scraped data to the list
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+
+        # Save product details to a CSV file for all URLs
         csv_filename = 'product_details.csv'
         with open(csv_filename, 'a', newline='', encoding='utf-8') as csv_file:
             fieldnames = ['url', 'brand_and_title', 'price', 'attributes', 'images', 'description']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             if csv_file.tell() == 0:
                 writer.writeheader()
-            writer.writerow(product_details)
+            for product_detail in scraped_data:
+                writer.writerow(product_detail)
 
-        return jsonify(product_details)
+        return jsonify({'status': 'success', 'scraped_data': scraped_data}), 200
     except Exception as e:
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
