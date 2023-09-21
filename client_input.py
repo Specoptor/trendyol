@@ -21,20 +21,13 @@ def scrape_image_links(url):
 
         soup = BeautifulSoup(page_source, 'html.parser')
 
-        div_elements = soup.find_all('div', class_='base-product-image')
-
-        image_links = []
-
-        for div_element in div_elements:
-            img_tag = div_element.find('img')
-            if img_tag and 'src' in img_tag.attrs:
-                image_url = img_tag['src']
-                image_links.append(image_url)
+        # Find all <img> tags within the <div> elements with class 'gallery-container'
+        img_tags = soup.select('div.gallery-container img[src]')
+        image_links = [img['src'] for img in img_tags]
 
         return image_links
     finally:
         driver.quit()
-
 def get_brand_and_title(soup):
     """
        Get the brand and title of the product from the BeautifulSoup object.
